@@ -1,0 +1,46 @@
+---
+groups:
+- name: default
+  jobs:
+  - deploy
+
+jobs:
+- name: deploy
+  serial: true
+  plan:
+  - get: app
+  - task: deploy
+    config:
+      platform: linux
+      image_resource:
+        type: docker-image
+        source:
+          repository: ubuntu
+          version: xenial
+      params:
+        KUBECONFIG_CONTENTS: ((kubeconfig))
+        YTT_key__nested: "foo"
+      run:
+        path: /bin/bash
+        args:
+        - -c
+        - |
+          set -e -x
+          apt-get -y update
+          apt-get -y install wget
+
+          wget -O- https://k14s.io/install.sh | bash
+
+          mkdir -p ~/.kube
+          set +x
+          echo "$KUBECONFIG_CONTENTS" > ~/.kube/config
+          set -x
+
+          ytt -f app/config/ ----data-values-env YTT | kapp deploy -a app -f- -c -y
+
+resources:
+- name: app
+  type: git
+  source:
+    uri: https://github.com/mayureshkrishna/k8s-pipeline.git
+    branch: master
