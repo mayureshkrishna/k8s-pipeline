@@ -20,6 +20,8 @@ jobs:
       params:
         KUBECONFIG_CONTENTS: ((kubeconfig))
         YTT_key__nested: "foo"
+      inputs:
+        - name: app
       run:
         path: /bin/bash
         args:
@@ -29,14 +31,20 @@ jobs:
           apt-get -y update
           apt-get -y install wget
 
-          wget -O- https://k14s.io/install.sh | bash
+          dst_dir="${K14SIO_INSTALL_BIN_DIR:-/usr/local/bin}"
+          echo "Installing kapp..."
+          wget -O- https://github.com/k14s/kapp/releases/download/v0.11.0/kapp-linux-amd64 > /tmp/kapp
+          mv /tmp/kapp ${dst_dir}/kapp
+          chmod +x ${dst_dir}/kapp
+          echo "Installed ${dst_dir}/kapp"
 
           mkdir -p ~/.kube
           set +x
           echo "$KUBECONFIG_CONTENTS" > ~/.kube/config
           set -x
 
-          ytt -f app/config/ ----data-values-env YTT | kapp deploy -a app -f- -c -y
+          echo $KUBECONFIG_CONTENTS
+          kapp deploy -a app -f app/config/ -c -y
 
 resources:
 - name: app
